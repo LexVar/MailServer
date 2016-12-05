@@ -8,7 +8,7 @@
 #include <netdb.h>
 
 #define SERVER_PORT 9000
-#define BUF_SIZE 1024
+#define BUF_SIZE 10
 
 void erro(char *msg);
 
@@ -19,11 +19,11 @@ int main(int argc, char *argv[])
 	int fd, nread;
 	struct sockaddr_in addr;
 	struct hostent *hostPtr;
-	char buffer[1024];
+	char buffer[10];
 
-	if (argc != 4)
+	if (argc != 3)
 	{
-		printf("cliente <host> <port> <string>\n");
+		printf("cliente <host> <port>\n");
 		exit(-1);
 	}
 
@@ -42,11 +42,24 @@ int main(int argc, char *argv[])
 	if( connect(fd,(struct sockaddr *)&addr,sizeof (addr)) < 0)
 		erro("Connect");
 
-	// TO DO
-	/*write(fd, argv[3], 1 + strlen(argv[3]));
-	nread = read(fd, buffer, BUF_SIZE-1);
-	buffer[nread] ='\0';
-	printf("Received from server: %s\n", buffer);*/
+	printf("Enter your username: ");
+	fgets(buffer, BUF_SIZE, stdin);
+	write(fd, buffer, BUF_SIZE);
+
+	fflush(stdin);
+
+	printf("Enter your password: ");
+	fgets(buffer, BUF_SIZE, stdin);
+	write(fd, buffer, BUF_SIZE);
+
+	fflush(stdin);
+
+	// work to do
+	while(1)
+	{
+
+	}
+
 	close(fd);
 
 	exit(0);
