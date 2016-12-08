@@ -7,8 +7,7 @@
 #include <unistd.h>
 #include <netdb.h>
 
-#define SERVER_PORT 9000
-#define BUF_SIZE 10
+#define SIZE 10
 
 void erro(char *msg);
 
@@ -16,7 +15,7 @@ int main(int argc, char *argv[])
 {
 
 	char endServer[100];
-	int fd, nread;
+	int fd, nread, flag;
 	struct sockaddr_in addr;
 	struct hostent *hostPtr;
 	char buffer[10];
@@ -43,14 +42,26 @@ int main(int argc, char *argv[])
 		erro("Connect");
 
 	printf("Enter your username: ");
-	fgets(buffer, BUF_SIZE, stdin);
-	write(fd, buffer, BUF_SIZE);
+	fgets(buffer, SIZE, stdin);
+	write(fd, buffer, SIZE);
 
 	fflush(stdin);
+	
 
 	printf("Enter your password: ");
-	fgets(buffer, BUF_SIZE, stdin);
-	write(fd, buffer, BUF_SIZE);
+	fgets(buffer, SIZE, stdin);
+	printf("pass: %s\n", buffer);
+	write(fd, buffer, SIZE);
+
+	read(fd, &flag, sizeof(flag));
+	printf("%d\n", flag);
+	if(flag == 0)
+	{
+		printf("Login incorrect! Leaving server...\n");
+		exit(0);
+	}
+	else
+		printf("Login accepted, welcome\n");
 
 	fflush(stdin);
 
