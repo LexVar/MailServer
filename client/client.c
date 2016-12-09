@@ -85,6 +85,7 @@ int main(int argc, char *argv[])
 		printf("OPER – para o cliente obter os privilégios do operador.\n");
 		printf("QUIT – para o cliente abandonar o sistema.\n");*/
 		printf("Enter command: ");
+
 		fgets(buffer, MAX_SIZE, stdin);
 
 		fflush(stdin);
@@ -167,6 +168,20 @@ void apply_action(char *str, int fd, char *user)
 		}
 		else
 			printf("There are no new mesages..\n");
+	}
+	else if(strcmp(str, "LIST_READ") == 0)
+	{
+		char file[MESSAGE_SIZE];
+		sprintf(file, "../read_msg/%s.txt", user);
+		FILE *fwr = fopen(file, "r");
+		if(fwr != NULL)
+		{
+			while(fgets(message, MESSAGE_SIZE, fwr) != NULL)
+				printf("%s", message);
+			fclose(fwr);
+		}
+		else
+			printf("You have no messages to list..\n");
 	}
 }
 
