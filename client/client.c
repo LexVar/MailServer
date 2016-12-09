@@ -10,6 +10,7 @@
 #define SIZE 10
 
 void erro(char *msg);
+void replace_line(char *str);
 
 int main(int argc, char *argv[])
 {
@@ -18,7 +19,7 @@ int main(int argc, char *argv[])
 	int fd, nread, flag;
 	struct sockaddr_in addr;
 	struct hostent *hostPtr;
-	char buffer[10];
+	char buffer[SIZE], user[SIZE];
 
 	if (argc != 3)
 	{
@@ -42,28 +43,26 @@ int main(int argc, char *argv[])
 		erro("Connect");
 
 	printf("Enter your username: ");
-	fgets(buffer, SIZE, stdin);
-	write(fd, buffer, SIZE);
+	fgets(user, SIZE, stdin);
+	replace_line(user);
+	write(fd, user, SIZE);
 
 	fflush(stdin);
-	
+
 
 	printf("Enter your password: ");
 	fgets(buffer, SIZE, stdin);
-	printf("pass: %s\n", buffer);
+	replace_line(buffer);
 	write(fd, buffer, SIZE);
 
 	read(fd, &flag, sizeof(flag));
-	printf("%d\n", flag);
-	if(flag == 0)
+	if(flag == 1)
+		printf("Login accepted, welcome %s\n", user);
+	else
 	{
 		printf("Login incorrect! Leaving server...\n");
 		exit(0);
 	}
-	else
-		printf("Login accepted, welcome\n");
-
-	fflush(stdin);
 
 	// work to do
 	while(1)
@@ -74,6 +73,17 @@ int main(int argc, char *argv[])
 	close(fd);
 
 	exit(0);
+}
+
+void replace_line(char *str)
+{
+	int i;
+	for(i = 0; str[i] != '\0'; i++)
+	{
+		if(str[i] == '\n')
+			str[i] = '\0';
+
+	}
 }
 
 void erro(char *msg)

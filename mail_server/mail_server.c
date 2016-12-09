@@ -10,7 +10,8 @@
 
 #define SIZE 10
 
-int verifies_login(char **array, int num, char *string);
+void replace_line(char *str);
+int verifies_login(char *v_user,char *v_pass);
 int num_lines(char *file);
 char  **load_pass(char *file, int n_lines);
 char  **load_users(char *file, int n_lines);
@@ -59,9 +60,6 @@ int main(int argc, char** argv) {
 	user = load_users("../client.aut", num_logins);
 	pass = load_pass("../client.aut", num_logins);
 
-	//for(i = 0; i < 4; i++)
-	//	printf("Login %d: %s - %s\n", i, user[i], pass[i]);
-
 	while(1)
 	{
 		client_addr_size = sizeof(client_addr);
@@ -69,9 +67,9 @@ int main(int argc, char** argv) {
 		if (client > 0)
 		{
 			// creates a new process to process client when a new client appears
+			n_proc++;
 			if (fork() == 0)
 			{
-				n_proc++;
 				close(fd);
 				process_client(client);
 				exit(0);
@@ -108,7 +106,7 @@ void process_client(int client_fd)
 	nread = read(client_fd, buf_user, SIZE);
 	buf_user[nread] = '\0';
 	printf("\n-----Novo cliente-----\n");
-	printf("Username entered: %s", buf_user);
+	printf("Username entered: %s\t", buf_user);
 	//fflush(stdout);
 
 	// reads client password
@@ -116,42 +114,35 @@ void process_client(int client_fd)
 	buf_pass[nread] = '\0';
 	printf("Password entered: %s\n", buf_pass);
 	//fflush(stdout);
-	for(i = 0; i < 4; i++)
-		printf("Login %d: %s|%s\n", i, user[i], pass[i]);
 
 	// TO DO
 
 	//verify if the client is authorized
-	if(verifies_login(user, num_logins, buf_user) == 1 && verifies_login(pass, num_logins, buf_pass) == 1)
+	flag = verifies_login(buf_user, buf_pass);
+	if(flag != 1)
 	{
-		flag = 1;
-		printf("cenas");
-	}
-	else
-	{
-		flag = 5000;
 		printf("Client inserted the wrong login information, leaving..\n");
+		exit(0);
 	}
-	printf("Flag: %d\n", flag);
 	write(client_fd, &flag, sizeof(flag));
-	printf("Client inserted the wrong login information, leaving..\n");
-	// work to do
-	fflush(stdout);
+
+
 	while(1)
 	{
-		printf("client\n");
+
 	}
 
 	close(client_fd);
 }
 
-int verifies_login(char **array, int num, char *string)
+int verifies_login(char *v_user,char *v_pass)
 {
-	int i = 0;
-	while(i < num && strcmp(array[i], string) != 0){i++;}
-	printf("array[i]: %s\n", array[i]);
-	if(i < num)
-		return 1;
+	int i;
+	for(i = 0; i < num_logins; i++)
+	{
+		if(strcmp(user[i], v_user) == 0 && strcmp(pass[i], v_pass) == 0)
+			return 1;
+	}
 	return 0;
 }
 
@@ -214,6 +205,17 @@ int num_lines(char *file)
 		fclose(f);
 	}
 	return n_lines;
+}
+
+void replace_line(char *str)
+{
+	int i;
+	for(i = 0; str[i] != '\0'; i++)
+	{
+		if(str[i] == '\n')
+			str[i] = '\0';
+
+	}
 }
 
 void erro(char *msg)
