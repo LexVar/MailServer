@@ -9,7 +9,11 @@
 #include <sys/wait.h>
 
 #define SIZE 10
+#define MAX_SIZE 25
+#define MESSAGE_SIZE 100
 
+void write_login(char *file, char **user, char **pass);
+void apply_action(char *str, int fd_client, char *buf_user);
 void replace_line(char *str);
 int verifies_login(char *v_user,char *v_pass);
 int num_lines(char *file);
@@ -21,6 +25,7 @@ void erro(char *msg);
 
 char **user, **pass;
 int num_logins;
+int it;
 
 int main(int argc, char** argv) {
 	int fd, client;
@@ -97,9 +102,10 @@ int main(int argc, char** argv) {
 
 void process_client(int client_fd)
 {
+	int oper = 0;
 	int nread = 0;
 	char buf_pass[SIZE];
-	char buf_user[SIZE];
+	char buf_user[SIZE], buffer[MAX_SIZE];
 	int flag, i;
 
 	// reads username from client
@@ -129,18 +135,62 @@ void process_client(int client_fd)
 
 	while(1)
 	{
-
+		nread = read(client_fd, buffer, MAX_SIZE);
+		buffer[nread] = '\0';
+		printf("Command entered from client %s: %s\n", buf_user, buffer);
+		apply_action(buffer, client_fd, buf_user);
 	}
 
 	close(client_fd);
 }
 
+
+
+void apply_action(char *str, int client_fd, char *buf_user)
+{
+	char buf[SIZE], client[SIZE];
+	int nread;
+	char message[MESSAGE_SIZE], file[MESSAGE_SIZE];
+	if(strcmp(str, "QUIT") == 0)
+	{
+		printf("Client %s leaving mail server..\n", buf_user);
+		exit(0);
+	}
+	else if(strcmp(str, "LIST_USERS") == 0)
+	{
+		write(client_fd, &num_logins, sizeof(num_logins));
+		for(int i = 0; i < num_logins; i++)
+			write(client_fd, user[i], SIZE);
+	}
+	else if(strcmp(str, "CHANGE_PASSW") == 0)
+	{
+		nread = read(client_fd, buf, SIZE);
+		buf[nread] = '\0';
+		strcpy(pass[it], buf);
+		printf("Client %s changed password\n", buf_user);
+		write_login("../client.aut", user, pass);
+	}
+	else if(strcmp(str, "SEND_MESS") == 0)
+	{
+		read(client_fd, message, MESSAGE_SIZE);
+		read(client_fd, client, SIZE);
+		sprintf(file, "../new_msg/%s.txt", client);
+		FILE *f = fopen(file, "a");
+		if(f != NULL)
+		{
+			fprintf(f, "From %s: %s\n", buf_user, message);
+		}
+		fclose(f);
+		printf("Client %s sent message to %s\n", buf_user, client);
+	}
+
+}
+
 int verifies_login(char *v_user,char *v_pass)
 {
-	int i;
-	for(i = 0; i < num_logins; i++)
+	for(it = 0; it < num_logins; it++)
 	{
-		if(strcmp(user[i], v_user) == 0 && strcmp(pass[i], v_pass) == 0)
+		if(strcmp(user[it], v_user) == 0 && strcmp(pass[it], v_pass) == 0)
 			return 1;
 	}
 	return 0;
@@ -192,6 +242,17 @@ char  **load_pass(char *file, int n_lines)
 	return pw;
 }
 
+void write_login(char *file, char **user, char **pass)
+{
+	FILE *f = fopen(file, "w");
+	if(f != NULL)
+	{
+		for(int i = 0; i < num_logins; i++)
+			fprintf(f, "%s - %s\n", user[i], pass[i]);
+		fclose(f);
+	}
+}
+
 // return number of lines in a file
 int num_lines(char *file)
 {
@@ -214,7 +275,6 @@ void replace_line(char *str)
 	{
 		if(str[i] == '\n')
 			str[i] = '\0';
-
 	}
 }
 
