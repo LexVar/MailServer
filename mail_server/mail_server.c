@@ -366,22 +366,24 @@ void apply_action(char *str, int client_fd, char *buf_user, int *oper)
 			printf("ERROR, User %s doesn't have OPER priveligies\n", buf_user);
 			return;
 		}
-		int n_lines;
+		int i, n_lines;
+		nread = read(client_fd, client, SIZE);
+		client[nread] = '\0';
+		sprintf(file, "../read_msg/%s.txt",client);
 		// send number of messages to client
-		sprintf(file, "../read_msg/%s.txt", buf_user);
 		n_lines = num_lines(file);
 		write(client_fd, &n_lines, sizeof(n_lines));
 
 		// send messages to client
-		FILE *fwr = fopen(file, "r");
-		if(fwr != NULL)
+		FILE *f = fopen(file, "r");
+		if(f != NULL)
 		{
-			for(int i = 0; i < n_lines; i++)
+			for(i = 0; i < n_lines; i++)
 			{
-				fgets(message, MESSAGE_SIZE, fwr);
+				fgets(message, MESSAGE_SIZE, f);
 				write(client_fd, message, MESSAGE_SIZE);
 			}
-			fclose(fwr);
+			fclose(f);
 		}
 	}
 }

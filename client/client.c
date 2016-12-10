@@ -262,10 +262,26 @@ void apply_action(char *str, int fd, char *user)
 			printf("ERROR, You don't have OPER priveligies\n");
 			return;
 		}
+		int n_lines, i;
 		printf("User to list messages: ");
 		fgets(buf, SIZE, stdin);
 		replace_line(buf);
 		write(fd, buf, SIZE);
+		// read number of messages
+		read(fd, &n_lines, sizeof(n_lines));
+
+		// if not empty read messages and print
+		if(n_lines != 0)
+		{
+			for(i = 0; i < n_lines; i++)
+			{
+				nread = read(fd, message, MESSAGE_SIZE);
+				message[nread] = '\0';
+				printf("%d -> %s", i, message);
+			}
+		}
+		else
+			printf("Read archive empty..\n");
 	}
 }
 
