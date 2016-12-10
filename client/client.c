@@ -6,6 +6,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <netdb.h>
+#include <sys/wait.h>
 
 #define SIZE 10
 #define MAX_SIZE 25
@@ -14,6 +15,7 @@
 void apply_action(char *str, int fd, char *user);
 void erro(char *msg);
 void replace_line(char *str);
+int num_lines(char *file);
 void notify_new_msg(char *user);
 
 int main(int argc, char *argv[])
@@ -45,6 +47,8 @@ int main(int argc, char *argv[])
 		erro("socket");
 	if( connect(fd,(struct sockaddr *)&addr,sizeof (addr)) < 0)
 		erro("Connect");
+
+	signal(SIGINT, SIG_IGN);
 
 	printf("Enter your username: ");
 	fgets(user, SIZE, stdin);
@@ -84,13 +88,12 @@ int main(int argc, char *argv[])
 		printf("CHANGE_PASSW – alterar a password\n");
 		printf("OPER – para o cliente obter os privilégios do operador.\n");
 		printf("QUIT – para o cliente abandonar o sistema.\n");*/
-		printf("Enter command: ");
+		printf("\nEnter command: ");
 
 		fgets(buffer, MAX_SIZE, stdin);
+		replace_line(buffer);
 
 		fflush(stdin);
-
-		replace_line(buffer);
 
 		write(fd, buffer, MAX_SIZE);
 		apply_action(buffer, fd, user);
@@ -105,7 +108,7 @@ void apply_action(char *str, int fd, char *user)
 {
 	char buf[SIZE];
 	int num_logins, nread;
-	int client;
+	int client, msg;
 	char message[MESSAGE_SIZE];
 
 	if(strcmp(str, "QUIT") == 0)
@@ -132,56 +135,77 @@ void apply_action(char *str, int fd, char *user)
 	}
 	else if(strcmp(str, "SEND_MESS") == 0)
 	{
+
 		printf("Insert message: ");
 		fgets(message, MESSAGE_SIZE, stdin);
 		replace_line(message);
 		printf("Choose client: ");
 		fgets(buf, SIZE, stdin);
 		replace_line(buf);
+		// send message and user to server
 		write(fd, message, MESSAGE_SIZE);
 		write(fd, buf, SIZE);
 	}
 	else if(strcmp(str, "LIST_MESS") == 0)
 	{
-		char file[MESSAGE_SIZE];
-		//open file to write messages after reading them
-		sprintf(file, "../read_msg/%s.txt", user);
-		FILE *fwr = fopen(file, "a");
+		int n_lines;
 
-		// open file to read new messages
-		sprintf(file, "../new_msg/%s.txt", user);
-		FILE *frd = fopen(file, "r");
+		// read number of messages
+		read(fd, &n_lines, sizeof(n_lines));
 
-		if(frd != NULL)
+		// if not empty read messages and print
+		if(n_lines != 0)
 		{
-			while(fgets(message, MESSAGE_SIZE, frd) != NULL)
+			for(int i = 0; i < n_lines; i++)
 			{
-				printf("%s", message);
-				if(fwr != NULL)
-				{
-					fprintf(fwr, "%s", message);
-				}
+				nread = read(fd, message, MESSAGE_SIZE);
+				message[nread] = '\0';
+				printf("%d -> %s", i, message);
 			}
-			fclose(frd);
-			fclose(fwr);
-			remove(file);
 		}
 		else
-			printf("There are no new mesages..\n");
+			printf("Mailbox empty\n");
+
 	}
 	else if(strcmp(str, "LIST_READ") == 0)
 	{
-		char file[MESSAGE_SIZE];
-		sprintf(file, "../read_msg/%s.txt", user);
-		FILE *fwr = fopen(file, "r");
-		if(fwr != NULL)
+
+		int n_lines;
+		// read number of messages
+		read(fd, &n_lines, sizeof(n_lines));
+
+		// if not empty read messages and print
+		if(n_lines != 0)
 		{
-			while(fgets(message, MESSAGE_SIZE, fwr) != NULL)
-				printf("%s", message);
-			fclose(fwr);
+			for(int i = 0; i < n_lines; i++)
+			{
+				nread = read(fd, message, MESSAGE_SIZE);
+				message[nread] = '\0';
+				printf("%d -> %s", i, message);
+			}
 		}
 		else
-			printf("You have no messages to list..\n");
+			printf("Read archive empty..\n");
+	}
+	else if(strcmp(str, "REMOVE_MES") == 0)
+	{
+		int msg;
+		printf("Message to remove(index): ");
+		scanf("%d", &msg);
+		write(fd, &msg, sizeof(msg));
+	}
+	else if(strcmp(str, "OPER") == 0)
+	{
+		if(*oper == 1)
+		{
+			printf("User already has oper privilegies\n");
+		}
+		else
+		{
+			printf("Enter admin password: ");
+			fgets(buf, SIZE, stdin);
+			replace_line(buf);
+		}
 	}
 }
 
@@ -207,6 +231,20 @@ void notify_new_msg(char *user)
 		printf("You have a new message..\n");
 		fclose(f);
 	}
+}
+
+int num_lines(char *file)
+{
+	char buffer[MESSAGE_SIZE];
+	int n_lines = 0;
+	FILE *f = fopen(file, "r");
+
+	if(f != NULL)
+	{
+		while(fgets(buffer, MESSAGE_SIZE, f) != NULL){n_lines++;}
+		fclose(f);
+	}
+	return n_lines;
 }
 
 void erro(char *msg)

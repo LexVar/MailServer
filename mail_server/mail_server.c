@@ -12,26 +12,27 @@
 #define MAX_SIZE 25
 #define MESSAGE_SIZE 100
 
-void write_login(char *file, char **user, char **pass);
-void apply_action(char *str, int fd_client, char *buf_user);
+void write_login(char *file);
+void apply_action(char *str, int client_fd, char *buf_user, int *oper);
 void replace_line(char *str);
 int verifies_login(char *v_user,char *v_pass);
 int num_lines(char *file);
-char  **load_pass(char *file, int n_lines);
-char  **load_users(char *file, int n_lines);
+char **load_pass(char *file, int n_lines);
+char **load_users(char *file, int n_lines);
 int load_logins(char **user, char **pw);
 void process_client(int fd);
+void sigint(int signum);
 void erro(char *msg);
 
-char **user, **pass;
-int num_logins;
+char **user = NULL, **pass = NULL;
+int num_logins, n_proc = 0;
 int it;
 
 int main(int argc, char** argv) {
 	int fd, client;
 	struct sockaddr_in addr, client_addr;
 	int client_addr_size;
-	int i, n_proc = 0;
+	int i;
 	int server_port;
 
 	if(argc != 3)
@@ -59,12 +60,7 @@ int main(int argc, char** argv) {
 
 	printf("Mail Server running..\n");
 
-	// load logins from file to arrays
-
- 	num_logins = num_lines("../client.aut");
-	user = load_users("../client.aut", num_logins);
-	pass = load_pass("../client.aut", num_logins);
-
+	signal(SIGINT, sigint);
 	while(1)
 	{
 		client_addr_size = sizeof(client_addr);
@@ -83,20 +79,6 @@ int main(int argc, char** argv) {
 			close(client);
 		}
 	}
-
-	// waits for all the son processes to end
-	for(i = 0; i < n_proc; i++)
-		wait(NULL);
-
-	// frees all resources of arrays
-	for(i = 0; i < num_logins; i++)
-	{
-		free(pass[i]);
-		free(user[i]);
-	}
-	free(user);
-	free(pass);
-
 	return 0;
 }
 
@@ -138,7 +120,7 @@ void process_client(int client_fd)
 		nread = read(client_fd, buffer, MAX_SIZE);
 		buffer[nread] = '\0';
 		printf("Command entered from client %s: %s\n", buf_user, buffer);
-		apply_action(buffer, client_fd, buf_user);
+		apply_action(buffer, client_fd, buf_user, &oper);
 	}
 
 	close(client_fd);
@@ -146,7 +128,7 @@ void process_client(int client_fd)
 
 
 
-void apply_action(char *str, int client_fd, char *buf_user)
+void apply_action(char *str, int client_fd, char *buf_user, int *oper)
 {
 	char buf[SIZE], client[SIZE];
 	int nread;
@@ -168,26 +150,137 @@ void apply_action(char *str, int client_fd, char *buf_user)
 		buf[nread] = '\0';
 		strcpy(pass[it], buf);
 		printf("Client %s changed password\n", buf_user);
-		write_login("../client.aut", user, pass);
+		write_login("../client.aut");
 	}
 	else if(strcmp(str, "SEND_MESS") == 0)
 	{
+		// reads message and user
 		read(client_fd, message, MESSAGE_SIZE);
 		read(client_fd, client, SIZE);
+		// adds message to new_msg file for user
 		sprintf(file, "../new_msg/%s.txt", client);
 		FILE *f = fopen(file, "a");
 		if(f != NULL)
 		{
 			fprintf(f, "From %s: %s\n", buf_user, message);
+			fclose(f);
 		}
-		fclose(f);
 		printf("Client %s sent message to %s\n", buf_user, client);
 	}
+	else if(strcmp(str, "LIST_MESS") == 0)
+	{
+		int n_lines;
+		//open file to write messages after reading them
+		sprintf(file, "../read_msg/%s.txt", buf_user);
+		FILE *fwr = fopen(file, "a");
 
+		sprintf(file, "../new_msg/%s.txt", buf_user);
+
+		n_lines = num_lines(file);
+		write(client_fd, &n_lines, sizeof(n_lines));
+		printf("n_lines_%d\n", n_lines);
+
+		// open file to read new messages
+		FILE *frd = fopen(file, "r");
+
+		if(frd != NULL)
+		{
+			// while there is a message, send it to client
+			while(fgets(message, MESSAGE_SIZE, frd) != NULL)
+			{
+				write(client_fd, message, MESSAGE_SIZE);
+				// once the message is read, add it to the read messages file
+				if(fwr != NULL)
+					fprintf(fwr, "%s", message);
+			}
+			fclose(frd);
+			fclose(fwr);
+			// after reading all messages, deletes the new messages file
+			remove(file);
+		}
+	}
+	else if(strcmp(str, "LIST_READ") == 0)
+	{
+		int n_lines;
+		// send number of messages to client
+		sprintf(file, "../read_msg/%s.txt", buf_user);
+		n_lines = num_lines(file);
+		write(client_fd, &n_lines, sizeof(n_lines));
+
+		// send messages to client
+		FILE *fwr = fopen(file, "r");
+		if(fwr != NULL)
+		{
+			for(int i = 0; i < n_lines; i++)
+			{
+				fgets(message, MESSAGE_SIZE, fwr);
+				write(client_fd, message, MESSAGE_SIZE);
+			}
+			fclose(fwr);
+		}
+	}
+	else if(strcmp(str, "REMOVE_MES") == 0)
+	{
+		int msg, n_lines, i = 0;
+		sprintf(file, "../read_msg/%s.txt", buf_user);
+		n_lines = num_lines(file);
+		char msgs[n_lines][MESSAGE_SIZE];
+
+		read(client_fd, &msg, sizeof(msg));
+
+		FILE *f = fopen(file, "r");
+		if(f != NULL)
+		{
+			while(fgets(message, MESSAGE_SIZE, f) != NULL)
+			{
+				if(i != msg)
+					strcpy(msgs[i], message);
+				i++;
+			}
+			fclose(f);
+		}
+		f = fopen(file, "w");
+		if(f != NULL)
+		{
+			i = 0;
+			while(i < n_lines)
+			{
+				if(i != msg)
+					fprintf(f, "%s", msgs[i]);
+				i++;
+			}
+			fclose(f);
+		}
+	}
+	else if(strcmp(str, "OPER") == 0)
+	{
+		if(*oper == 1)
+		{
+			printf("User already has oper privilegies\n");
+		}
+		else
+	}
 }
 
 int verifies_login(char *v_user,char *v_pass)
 {
+	// is arrays arent empty, free memory
+	if(user != NULL && pass != NULL)
+	{
+		for(int i = 0; i < num_logins; i++)
+		{
+			free(user[i]);
+			free(pass[i]);
+		}
+		free(user);
+		free(pass);
+	}
+	// load logins from file to arrays
+ 	num_logins = num_lines("../client.aut");
+	user = load_users("../client.aut", num_logins);
+	pass = load_pass("../client.aut", num_logins);
+
+	// checks if the login exists
 	for(it = 0; it < num_logins; it++)
 	{
 		if(strcmp(user[it], v_user) == 0 && strcmp(pass[it], v_pass) == 0)
@@ -242,7 +335,7 @@ char  **load_pass(char *file, int n_lines)
 	return pw;
 }
 
-void write_login(char *file, char **user, char **pass)
+void write_login(char *file)
 {
 	FILE *f = fopen(file, "w");
 	if(f != NULL)
@@ -256,13 +349,14 @@ void write_login(char *file, char **user, char **pass)
 // return number of lines in a file
 int num_lines(char *file)
 {
-	char buffer[2*SIZE];
+	char buffer[MESSAGE_SIZE];
 	int n_lines = 0;
 	FILE *f = fopen(file, "r");
 
 	if(f != NULL)
 	{
-		while(fgets(buffer, 2*SIZE, f) != NULL){n_lines++;}
+		while(fgets(buffer, MESSAGE_SIZE, f) != NULL)
+		{n_lines++;}
 		fclose(f);
 	}
 	return n_lines;
@@ -276,6 +370,24 @@ void replace_line(char *str)
 		if(str[i] == '\n')
 			str[i] = '\0';
 	}
+}
+
+void sigint(int signum)
+{
+	// waits for all the son processes to end
+	for(int i = 0; i < n_proc; i++)
+		wait(NULL);
+
+	// frees all resources of arrays
+	for(int i = 0; i < num_logins; i++)
+	{
+		free(pass[i]);
+		free(user[i]);
+	}
+	free(user);
+	free(pass);
+
+	exit(0);
 }
 
 void erro(char *msg)
