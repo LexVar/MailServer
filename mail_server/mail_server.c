@@ -294,7 +294,8 @@ void apply_action(char *str, int client_fd, char *buf_user, int *oper)
 	}
 	else if(strcmp(str, "REMOVE_ALL") == 0)
 	{
-
+		sprintf(file, "../read_msg/%s.txt", buf_user);
+		remove(file);
 	}
 }
 
