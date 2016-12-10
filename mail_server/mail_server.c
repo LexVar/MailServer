@@ -20,6 +20,7 @@ int num_lines(char *file);
 char **load_pass(char *file, int n_lines);
 char **load_users(char *file, int n_lines);
 int load_logins(char **user, char **pw);
+int check_client(char *clt);
 void process_client(int fd);
 void sigint(int signum);
 void erro(char *msg);
@@ -60,7 +61,6 @@ int main(int argc, char** argv) {
 
 	printf("Mail Server running..\n");
 
-	signal(SIGINT, sigint);
 	while(1)
 	{
 		client_addr_size = sizeof(client_addr);
@@ -94,16 +94,12 @@ void process_client(int client_fd)
 	nread = read(client_fd, buf_user, SIZE);
 	buf_user[nread] = '\0';
 	printf("\n-----Novo cliente-----\n");
-	printf("Username entered: %s\t", buf_user);
-	//fflush(stdout);
+	printf("Username entered: %s, ", buf_user);
 
 	// reads client password
 	nread = read(client_fd, buf_pass, SIZE);
 	buf_pass[nread] = '\0';
 	printf("Password entered: %s\n", buf_pass);
-	//fflush(stdout);
-
-	// TO DO
 
 	//verify if the client is authorized
 	flag = verifies_login(buf_user, buf_pass);
@@ -154,18 +150,34 @@ void apply_action(char *str, int client_fd, char *buf_user, int *oper)
 	}
 	else if(strcmp(str, "SEND_MESS") == 0)
 	{
+		int n;
 		// reads message and user
-		read(client_fd, message, MESSAGE_SIZE);
-		read(client_fd, client, SIZE);
-		// adds message to new_msg file for user
-		sprintf(file, "../new_msg/%s.txt", client);
-		FILE *f = fopen(file, "a");
-		if(f != NULL)
+		nread = read(client_fd, message, MESSAGE_SIZE);
+		message[nread] = '\0';
+		read(client_fd, &n, sizeof(n));
+
+		for(int i = 0; i < n; i++)
 		{
-			fprintf(f, "From %s: %s\n", buf_user, message);
-			fclose(f);
+			nread = read(client_fd, client, SIZE);
+			client[nread] = '\0';
+			// adds message to new_msg file for user
+			sprintf(file, "../new_msg/%s.txt", client);
+
+			// if client is authorized
+			if(check_client(client) == 1)
+			{
+				// sends message
+				FILE *f = fopen(file, "a");
+				if(f != NULL)
+				{
+					fprintf(f, "From %s: %s\n", buf_user, message);
+					fclose(f);
+				}
+				printf("Client %s sent message to %s\n", buf_user, client);
+			}
+			else
+				printf("Client %s not authorized. Message not sent\n", client);
 		}
-		printf("Client %s sent message to %s\n", buf_user, client);
 	}
 	else if(strcmp(str, "LIST_MESS") == 0)
 	{
@@ -178,7 +190,6 @@ void apply_action(char *str, int client_fd, char *buf_user, int *oper)
 
 		n_lines = num_lines(file);
 		write(client_fd, &n_lines, sizeof(n_lines));
-		printf("n_lines_%d\n", n_lines);
 
 		// open file to read new messages
 		FILE *frd = fopen(file, "r");
@@ -258,7 +269,6 @@ void apply_action(char *str, int client_fd, char *buf_user, int *oper)
 		{
 			printf("User already has oper privilegies\n");
 		}
-		else
 	}
 }
 
@@ -344,6 +354,16 @@ void write_login(char *file)
 			fprintf(f, "%s - %s\n", user[i], pass[i]);
 		fclose(f);
 	}
+}
+
+// returns 1 if client is authorized, 0 if not
+int check_client(char *clt)
+{
+	int i;
+	for(i = 0; i < num_logins && strcmp(clt, user[i]) != 0; i++){}
+	if(i < num_logins)
+		return 1;
+	return 0;
 }
 
 // return number of lines in a file

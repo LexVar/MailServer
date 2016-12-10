@@ -55,15 +55,10 @@ int main(int argc, char *argv[])
 	replace_line(user);
 	write(fd, user, SIZE);
 
-	fflush(stdin);
-
-
 	printf("Enter your password: ");
 	fgets(buffer, SIZE, stdin);
 	replace_line(buffer);
 	write(fd, buffer, SIZE);
-
-	fflush(stdin);
 
 	read(fd, &flag, sizeof(flag));
 	if(flag == 1)
@@ -92,8 +87,6 @@ int main(int argc, char *argv[])
 
 		fgets(buffer, MAX_SIZE, stdin);
 		replace_line(buffer);
-
-		fflush(stdin);
 
 		write(fd, buffer, MAX_SIZE);
 		apply_action(buffer, fd, user);
@@ -135,16 +128,27 @@ void apply_action(char *str, int fd, char *user)
 	}
 	else if(strcmp(str, "SEND_MESS") == 0)
 	{
-
+		int n;
 		printf("Insert message: ");
 		fgets(message, MESSAGE_SIZE, stdin);
 		replace_line(message);
-		printf("Choose client: ");
-		fgets(buf, SIZE, stdin);
-		replace_line(buf);
 		// send message and user to server
 		write(fd, message, MESSAGE_SIZE);
-		write(fd, buf, SIZE);
+
+		printf("How maney users do you want to send it too: ");
+		scanf("%d", &n);
+		// getchar to remove the left '\n'
+		getchar();
+		// sends number of users to server
+		write(fd, &n, sizeof(n));
+		for(int i = 0; i < n; i++)
+		{
+			printf("Input user: ");
+			fgets(buf, SIZE, stdin);
+			replace_line(buf);
+			// sends user to server
+			write(fd, buf, SIZE);
+		}
 	}
 	else if(strcmp(str, "LIST_MESS") == 0)
 	{
@@ -192,20 +196,15 @@ void apply_action(char *str, int fd, char *user)
 		int msg;
 		printf("Message to remove(index): ");
 		scanf("%d", &msg);
+		getchar();
 		write(fd, &msg, sizeof(msg));
 	}
 	else if(strcmp(str, "OPER") == 0)
 	{
-		if(*oper == 1)
-		{
-			printf("User already has oper privilegies\n");
-		}
-		else
-		{
-			printf("Enter admin password: ");
-			fgets(buf, SIZE, stdin);
-			replace_line(buf);
-		}
+		printf("Enter admin password: ");
+		fgets(buf, SIZE, stdin);
+		replace_line(buf);
+		//write(fd, );
 	}
 }
 
