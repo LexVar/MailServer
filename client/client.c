@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
 
 	if (argc != 3)
 	{
-		printf("cliente <host> <port>\n");
+		printf("Usage: cliente <host> <port>\n");
 		exit(-1);
 	}
 
@@ -84,7 +84,8 @@ int main(int argc, char *argv[])
 		printf("REMOVE_MES – para apagar mensagens.\n");
 		printf("CHANGE_PASSW – alterar a password\n");
 		printf("OPER – para o cliente obter os privilégios do operador.\n");
-		printf("QUIT – para o cliente abandonar o sistema.\n");*/
+		printf("QUIT – para o cliente abandonar o sistema.\n");
+		printf("REMOVE_ALL - para o cliente apagar as mensagens todas\n");*/
 		printf("\nEnter command: ");
 
 		fgets(buffer, MAX_SIZE, stdin);
@@ -225,6 +226,46 @@ void apply_action(char *str, int fd, char *user)
 			else
 				printf("Wrong admin password, no OPER priveligies given\n");
 		}
+	}
+	else if(strcmp(str, "REMOVE_USER") == 0)
+	{
+		if(oper == 0)
+		{
+			printf("ERROR, You don't have OPER priveligies\n");
+			return;
+		}
+		printf("User to remove: ");
+		fgets(buf, SIZE, stdin);
+		replace_line(buf);
+		write(fd, buf, SIZE);
+	}
+	else if(strcmp(str, "ADD_USER") == 0)
+	{
+		if(oper == 0)
+		{
+			printf("ERROR, You don't have OPER priveligies\n");
+			return;
+		}
+		printf("User to add: ");
+		fgets(buf, SIZE, stdin);
+		replace_line(buf);
+		write(fd, buf, SIZE);
+		printf("Password to add: ");
+		fgets(buf, SIZE, stdin);
+		replace_line(buf);
+		write(fd, buf, SIZE);
+	}
+	else if(strcmp(str, "LIST_USER_MESS") == 0)
+	{
+		if(oper == 0)
+		{
+			printf("ERROR, You don't have OPER priveligies\n");
+			return;
+		}
+		printf("User to list messages: ");
+		fgets(buf, SIZE, stdin);
+		replace_line(buf);
+		write(fd, buf, SIZE);
 	}
 }
 

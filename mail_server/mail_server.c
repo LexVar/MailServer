@@ -16,6 +16,7 @@ void write_login(char *file);
 void apply_action(char *str, int client_fd, char *buf_user, int *oper);
 void replace_line(char *str);
 int verifies_login(char *v_user,char *v_pass);
+void refresh_logins();
 int num_lines(char *file);
 char **load_pass(char *file, int n_lines);
 char **load_users(char *file, int n_lines);
@@ -100,7 +101,7 @@ void process_client(int client_fd)
 	// reads client password
 	nread = read(client_fd, buf_pass, SIZE);
 	buf_pass[nread] = '\0';
-	printf("Password entered: %s\n", buf_pass);
+	printf("Password entered: *********\n");
 
 	//verify if the client is authorized
 	flag = verifies_login(buf_user, buf_pass);
@@ -297,9 +298,95 @@ void apply_action(char *str, int client_fd, char *buf_user, int *oper)
 		sprintf(file, "../read_msg/%s.txt", buf_user);
 		remove(file);
 	}
+	else if(strcmp(str, "REMOVE_USER") == 0)
+	{
+		// verifies if client has oper priveligies
+		if((*oper) == 0)
+		{
+			printf("ERROR, User %s doesn't have OPER priveligies\n", buf_user);
+			return;
+		}
+		refresh_logins();
+		nread = read(client_fd, buf, SIZE);
+		buf[nread] = '\0';
+		int i;
+
+		for(i = 0; i < num_logins && strcmp(user[i], buf) != 0; i++){}
+		if(i < num_logins)
+		{
+			for(; i < num_logins-1; i++)
+			{
+				strcpy(user[i], user[i+1]);
+				strcpy(pass[i], pass[i+1]);
+			}
+			num_logins--;
+			for(int i = 0; i < num_logins; i++)
+			{
+				printf("user: %s, pass: %s\n", user[i], pass[i]);
+			}
+			printf("Client %s removed user %s\n", buf_user, buf);
+			write_login("../client.aut");
+		}
+	}
+	else if(strcmp(str, "ADD_USER") == 0)
+	{
+		// verifies if client has oper priveligies
+		if((*oper) == 0)
+		{
+			printf("ERROR, User %s doesn't have OPER priveligies\n", buf_user);
+			return;
+		}
+		int i;
+		refresh_logins();
+		// reads new login information
+		nread = read(client_fd, client, SIZE);
+		client[nread] = '\0';
+		nread = read(client_fd, buf, SIZE);
+		buf[nread] = '\0';
+		// allocs more space for logins
+		user = realloc(user, ++num_logins);
+		pass = realloc(pass, num_logins);
+		user[num_logins-1] = malloc(SIZE);
+		pass[num_logins-1] = malloc(SIZE);
+		// saves logins
+		strcpy(user[num_logins-1], client);
+		strcpy(pass[num_logins-1], buf);
+
+		for(int i = 0; i < num_logins; i++)
+		{
+			printf("user: %s, pass: %s\n", user[i], pass[i]);
+		}
+		// updates logins on database
+		write_login("../client.aut");
+	}
+	else if(strcmp(str, "LIST_USER_MESS") == 0)
+	{
+		if((*oper) == 0)
+		{
+			printf("ERROR, User %s doesn't have OPER priveligies\n", buf_user);
+			return;
+		}
+		int n_lines;
+		// send number of messages to client
+		sprintf(file, "../read_msg/%s.txt", buf_user);
+		n_lines = num_lines(file);
+		write(client_fd, &n_lines, sizeof(n_lines));
+
+		// send messages to client
+		FILE *fwr = fopen(file, "r");
+		if(fwr != NULL)
+		{
+			for(int i = 0; i < n_lines; i++)
+			{
+				fgets(message, MESSAGE_SIZE, fwr);
+				write(client_fd, message, MESSAGE_SIZE);
+			}
+			fclose(fwr);
+		}
+	}
 }
 
-int verifies_login(char *v_user,char *v_pass)
+void refresh_logins()
 {
 	// is arrays arent empty, free memory
 	if(user != NULL && pass != NULL)
@@ -316,6 +403,16 @@ int verifies_login(char *v_user,char *v_pass)
  	num_logins = num_lines("../client.aut");
 	user = load_users("../client.aut", num_logins);
 	pass = load_pass("../client.aut", num_logins);
+}
+
+int verifies_login(char *v_user,char *v_pass)
+{
+	refresh_logins();
+
+	for(int i = 0; i < num_logins; i++)
+	{
+		printf("user: %s, pass: %s\n", user[i], pass[i]);
+	}
 
 	// checks if the login exists
 	for(it = 0; it < num_logins; it++)
