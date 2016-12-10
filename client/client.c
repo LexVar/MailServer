@@ -18,6 +18,8 @@ void replace_line(char *str);
 int num_lines(char *file);
 void notify_new_msg(char *user);
 
+int oper = 0;
+
 int main(int argc, char *argv[])
 {
 
@@ -201,10 +203,28 @@ void apply_action(char *str, int fd, char *user)
 	}
 	else if(strcmp(str, "OPER") == 0)
 	{
-		printf("Enter admin password: ");
-		fgets(buf, SIZE, stdin);
-		replace_line(buf);
-		//write(fd, );
+		if(oper == 1)
+		{
+			printf("You already hava OPER priveligies\n");
+			return;
+		}
+		else
+		{
+			printf("Enter admin password: ");
+			fgets(buf, SIZE, stdin);
+			replace_line(buf);
+			// sends password
+			write(fd, buf, SIZE);
+			// read oper response
+			read(fd, &msg, sizeof(msg));
+			if(msg == 1)
+			{
+				printf("OPER previligies conceded\n");
+				oper = 1;
+			}
+			else
+				printf("Wrong admin password, no OPER priveligies given\n");
+		}
 	}
 }
 

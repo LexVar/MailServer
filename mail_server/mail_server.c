@@ -24,6 +24,7 @@ int check_client(char *clt);
 void process_client(int fd);
 void sigint(int signum);
 void erro(char *msg);
+char *encrypt(char *str);
 
 char **user = NULL, **pass = NULL;
 int num_logins, n_proc = 0;
@@ -103,11 +104,14 @@ void process_client(int client_fd)
 
 	//verify if the client is authorized
 	flag = verifies_login(buf_user, buf_pass);
+
 	if(flag != 1)
 	{
 		printf("Client inserted the wrong login information, leaving..\n");
 		exit(0);
 	}
+	else
+		printf("Client connected to Mail Server\n");
 	write(client_fd, &flag, sizeof(flag));
 
 
@@ -265,10 +269,32 @@ void apply_action(char *str, int client_fd, char *buf_user, int *oper)
 	}
 	else if(strcmp(str, "OPER") == 0)
 	{
-		if(*oper == 1)
+		if((*oper) == 1)
 		{
-			printf("User already has oper privilegies\n");
+			printf("User already has OPER privilegies\n");
+			return;
 		}
+		{
+			int i;
+			// receive password
+			nread = read(client_fd, buf, SIZE);
+			buf[nread] = '\0';
+
+			// get the admin password
+			for(i = 0; i < num_logins && strcmp(user[i], "admin") != 0; i++){}
+			if(strcmp(buf, pass[i]) == 0)
+			{
+				(*oper) = 1;
+				printf("Client %s now has OPER privilegies\n", buf_user);
+			}
+			else
+				printf("Client %s inserted wrong admin password\n", buf_user);
+			write(client_fd, oper, sizeof(*oper));
+		}
+	}
+	else if(strcmp(str, "REMOVE_ALL") == 0)
+	{
+
 	}
 }
 
@@ -337,7 +363,7 @@ char  **load_pass(char *file, int n_lines)
 		while(fscanf(f, "%s - %s\n", buffer_user, buffer_pw) != EOF)
 		{
 			pw[i] = malloc(SIZE);
-			strcpy(pw[i], buffer_pw);
+			strcpy(pw[i],encrypt(buffer_pw));
 			i++;
 		}
 		fclose(f);
@@ -351,7 +377,7 @@ void write_login(char *file)
 	if(f != NULL)
 	{
 		for(int i = 0; i < num_logins; i++)
-			fprintf(f, "%s - %s\n", user[i], pass[i]);
+			fprintf(f, "%s - %s\n", user[i], encrypt(pass[i]));
 		fclose(f);
 	}
 }
@@ -364,6 +390,17 @@ int check_client(char *clt)
 	if(i < num_logins)
 		return 1;
 	return 0;
+}
+
+// function to decrypt and encrypt (same with xor encryption)
+char *encrypt(char *str)
+{
+  	char key[10]="123456789";
+  	for(int i = 0; i < strlen(str); i++)
+  	{
+    	str[i] = str[i] ^key[i];
+  	}
+	return str;
 }
 
 // return number of lines in a file
