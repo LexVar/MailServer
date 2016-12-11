@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
 		printf("CHANGE_PASSW – alterar a password\n");
 		printf("OPER – para o cliente obter os privilégios do operador.\n");
 		printf("QUIT – para o cliente abandonar o sistema.\n");
-		printf("OPER commands: REMOVE_USER, ADD_USER, LIST_USER_MESS\n");
+		printf("OPER commands: REMOVE_USER, ADD_USER, LIST_USER_MESS, REM_USER_MESS\n");
 		// receives indication from the server if there is a new message
 		read(fd, &new, sizeof(new));
 		if(new == 1)
