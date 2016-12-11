@@ -23,6 +23,7 @@ char **load_users(char *file, int n_lines);
 int load_logins(char **user, char **pw);
 int check_client(char *clt);
 void process_client(int fd);
+int notify_new_msg(char *user);
 void sigint(int signum);
 void erro(char *msg);
 char *encrypt(char *str);
@@ -90,7 +91,7 @@ void process_client(int client_fd)
 	int nread = 0;
 	char buf_pass[SIZE];
 	char buf_user[SIZE], buffer[MAX_SIZE];
-	int flag, i;
+	int flag, i, new;
 
 	// reads username from client
 	nread = read(client_fd, buf_user, SIZE);
@@ -118,6 +119,8 @@ void process_client(int client_fd)
 
 	while(1)
 	{
+		new = notify_new_msg(buf_user);
+		write(client_fd, &new, sizeof(new));
 		nread = read(client_fd, buffer, MAX_SIZE);
 		buffer[nread] = '\0';
 		printf("Command entered from client %s: %s\n", buf_user, buffer);
@@ -141,6 +144,7 @@ void apply_action(char *str, int client_fd, char *buf_user, int *oper)
 	}
 	else if(strcmp(str, "LIST_USERS") == 0)
 	{
+		refresh_logins();
 		write(client_fd, &num_logins, sizeof(num_logins));
 		for(int i = 0; i < num_logins; i++)
 			write(client_fd, user[i], SIZE);
@@ -311,6 +315,9 @@ void apply_action(char *str, int client_fd, char *buf_user, int *oper)
 		buf[nread] = '\0';
 		int i;
 
+		if(strcmp(buf, "admin") == 0)
+			return;
+
 		for(i = 0; i < num_logins && strcmp(user[i], buf) != 0; i++){}
 		if(i < num_logins)
 		{
@@ -320,13 +327,18 @@ void apply_action(char *str, int client_fd, char *buf_user, int *oper)
 				strcpy(pass[i], pass[i+1]);
 			}
 			num_logins--;
-			for(int i = 0; i < num_logins; i++)
-			{
-				printf("user: %s, pass: %s\n", user[i], pass[i]);
-			}
+
 			printf("Client %s removed user %s\n", buf_user, buf);
 			write_login("../client.aut");
+			i = 1;
+			write(client_fd, &i, sizeof(i));
 		}
+		else
+		{
+			i = 0;
+			write(client_fd, &i, sizeof(i));
+		}
+
 	}
 	else if(strcmp(str, "ADD_USER") == 0)
 	{
@@ -352,10 +364,6 @@ void apply_action(char *str, int client_fd, char *buf_user, int *oper)
 		strcpy(user[num_logins-1], client);
 		strcpy(pass[num_logins-1], buf);
 
-		for(int i = 0; i < num_logins; i++)
-		{
-			printf("user: %s, pass: %s\n", user[i], pass[i]);
-		}
 		// updates logins on database
 		write_login("../client.aut");
 	}
@@ -374,7 +382,7 @@ void apply_action(char *str, int client_fd, char *buf_user, int *oper)
 		n_lines = num_lines(file);
 		write(client_fd, &n_lines, sizeof(n_lines));
 
-		// send messages to client
+		// send read messages to client
 		FILE *f = fopen(file, "r");
 		if(f != NULL)
 		{
@@ -382,6 +390,63 @@ void apply_action(char *str, int client_fd, char *buf_user, int *oper)
 			{
 				fgets(message, MESSAGE_SIZE, f);
 				write(client_fd, message, MESSAGE_SIZE);
+			}
+			fclose(f);
+		}
+
+		sprintf(file, "../new_msg/%s.txt",client);
+		// send number of messages to client
+		n_lines = num_lines(file);
+		write(client_fd, &n_lines, sizeof(n_lines));
+
+		// send new messages to client
+		f = fopen(file, "r");
+		if(f != NULL)
+		{
+			for(i = 0; i < n_lines; i++)
+			{
+				fgets(message, MESSAGE_SIZE, f);
+				write(client_fd, message, MESSAGE_SIZE);
+			}
+			fclose(f);
+		}
+	}
+	else if(strcmp(str, "REM_USER_MESS") == 0)
+	{
+		if((*oper) == 0)
+		{
+			printf("ERROR, User %s doesn't have OPER priveligies\n", buf_user);
+			return;
+		}
+		int msg, n_lines, i = 0;
+		nread = read(client_fd, client, SIZE);
+		client[nread] = '\0';
+		sprintf(file, "../read_msg/%s.txt", client);
+		n_lines = num_lines(file);
+		char msgs[n_lines][MESSAGE_SIZE];
+		read(client_fd, &msg, sizeof(msg));
+
+		FILE *f = fopen(file, "r");
+		if(f != NULL)
+		{
+			while(fgets(message, MESSAGE_SIZE, f) != NULL)
+			{
+				if(i != msg)
+					strcpy(msgs[i], message);
+				i++;
+			}
+			fclose(f);
+		}
+
+		f = fopen(file, "w");
+		if(f != NULL)
+		{
+			i = 0;
+			while(i < n_lines)
+			{
+				if(i != msg)
+					fprintf(f, "%s", msgs[i]);
+				i++;
 			}
 			fclose(f);
 		}
@@ -411,11 +476,6 @@ int verifies_login(char *v_user,char *v_pass)
 {
 	refresh_logins();
 
-	for(int i = 0; i < num_logins; i++)
-	{
-		printf("user: %s, pass: %s\n", user[i], pass[i]);
-	}
-
 	// checks if the login exists
 	for(it = 0; it < num_logins; it++)
 	{
@@ -440,7 +500,7 @@ char  **load_users(char *file, int n_lines)
 		while(fscanf(f, "%s - %s\n", buffer_user, buffer_pw) != EOF)
 		{
 			user[i] = malloc(SIZE);
-			strcpy(user[i], buffer_user);
+			strcpy(user[i], encrypt(buffer_user));
 			i++;
 		}
 		fclose(f);
@@ -477,7 +537,7 @@ void write_login(char *file)
 	if(f != NULL)
 	{
 		for(int i = 0; i < num_logins; i++)
-			fprintf(f, "%s - %s\n", user[i], encrypt(pass[i]));
+			fprintf(f, "%s - %s\n", encrypt(user[i]), encrypt(pass[i]));
 		fclose(f);
 	}
 }
@@ -527,6 +587,21 @@ void replace_line(char *str)
 		if(str[i] == '\n')
 			str[i] = '\0';
 	}
+}
+
+int notify_new_msg(char *user)
+{
+	char file[MESSAGE_SIZE];
+	sprintf(file, "../new_msg/%s.txt", user);
+	FILE *f = fopen(file, "r");
+
+	// if file with new messages exist, notify client
+	if(f != NULL)
+	{
+		fclose(f);
+		return 1;
+	}
+	return 0;
 }
 
 void sigint(int signum)

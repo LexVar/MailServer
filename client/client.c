@@ -16,7 +16,6 @@ void apply_action(char *str, int fd, char *user);
 void erro(char *msg);
 void replace_line(char *str);
 int num_lines(char *file);
-void notify_new_msg(char *user);
 
 int oper = 0;
 
@@ -24,7 +23,7 @@ int main(int argc, char *argv[])
 {
 
 	char endServer[100];
-	int fd, nread, flag;
+	int fd, nread, flag, new;
 	struct sockaddr_in addr;
 	struct hostent *hostPtr;
 	char buffer[MAX_SIZE], user[SIZE];
@@ -75,17 +74,22 @@ int main(int argc, char *argv[])
 	// work to do
 	while(1)
 	{
-		notify_new_msg(user);
-		/*
+		printf("Press enter to continues..\n");
+		getchar();
 		printf("LIST_MESS – para listar todas as mensagens por ler.\n");
 		printf("LIST_USERS – para listar todos os clientes autorizados\n");
-		printf("SEND_MESS – para enviar uma mensagem para um cliente (autorizado).\n");
+		printf("SEND_MESS – para enviar uma mensagem para um cliente ou mais(autorizados).\n");
 		printf("LIST_READ – para listar todas as mensagens já lidas.\n");
 		printf("REMOVE_MES – para apagar mensagens.\n");
 		printf("CHANGE_PASSW – alterar a password\n");
 		printf("OPER – para o cliente obter os privilégios do operador.\n");
 		printf("QUIT – para o cliente abandonar o sistema.\n");
-		printf("REMOVE_ALL - para o cliente apagar as mensagens todas\n");*/
+		printf("OPER commands: REMOVE_USER, ADD_USER, LIST_USER_MESS\n");
+		// receives indication from the server if there is a new message
+		read(fd, &new, sizeof(new));
+		if(new == 1)
+			printf("\nATENTION!!!You have a new message..\n");
+
 		printf("\nEnter command: ");
 
 		fgets(buffer, MAX_SIZE, stdin);
@@ -206,7 +210,7 @@ void apply_action(char *str, int fd, char *user)
 	{
 		if(oper == 1)
 		{
-			printf("You already hava OPER priveligies\n");
+			printf("You already have OPER priveligies\n");
 			return;
 		}
 		else
@@ -238,6 +242,19 @@ void apply_action(char *str, int fd, char *user)
 		fgets(buf, SIZE, stdin);
 		replace_line(buf);
 		write(fd, buf, SIZE);
+
+		if(strcmp(buf, "admin") == 0)
+		{
+			printf("You cannot remove the admin user!\n");
+			return;
+		}
+
+		// receives mesage to see if user was removed
+		read(fd, &msg, sizeof(msg));
+		if(msg == 1)
+			printf("User removed\n");
+		else
+			printf("User doesn't exist/not authorized\n");
 	}
 	else if(strcmp(str, "ADD_USER") == 0)
 	{
@@ -254,6 +271,7 @@ void apply_action(char *str, int fd, char *user)
 		fgets(buf, SIZE, stdin);
 		replace_line(buf);
 		write(fd, buf, SIZE);
+
 	}
 	else if(strcmp(str, "LIST_USER_MESS") == 0)
 	{
@@ -271,6 +289,7 @@ void apply_action(char *str, int fd, char *user)
 		read(fd, &n_lines, sizeof(n_lines));
 
 		// if not empty read messages and print
+		printf("Read messages:\n");
 		if(n_lines != 0)
 		{
 			for(i = 0; i < n_lines; i++)
@@ -282,6 +301,38 @@ void apply_action(char *str, int fd, char *user)
 		}
 		else
 			printf("Read archive empty..\n");
+
+		read(fd, &n_lines, sizeof(n_lines));
+		printf("New messages:\n");
+		// if not empty read messages and print
+		if(n_lines != 0)
+		{
+			for(i = 0; i < n_lines; i++)
+			{
+				nread = read(fd, message, MESSAGE_SIZE);
+				message[nread] = '\0';
+				printf("%d -> %s", i, message);
+			}
+		}
+		else
+			printf("New messages archive empty..\n");
+	}
+	else if(strcmp(str, "REM_USER_MESS") == 0)
+	{
+		if(oper == 0)
+		{
+			printf("ERROR, You don't have OPER priveligies\n");
+			return;
+		}
+		int msg;
+		printf("User: ");
+		fgets(buf, SIZE, stdin);
+		replace_line(buf);
+		write(fd, buf, SIZE);
+		printf("Message to remove(index): ");
+		scanf("%d", &msg);
+		getchar();
+		write(fd, &msg, sizeof(msg));
 	}
 }
 
@@ -292,20 +343,6 @@ void replace_line(char *str)
 	{
 		if(str[i] == '\n')
 			str[i] = '\0';
-	}
-}
-
-void notify_new_msg(char *user)
-{
-	char file[MESSAGE_SIZE];
-	sprintf(file, "../new_msg/%s.txt", user);
-	FILE *f = fopen(file, "r");
-
-	// if file with new messages exist, notify client
-	if(f != NULL)
-	{
-		printf("You have a new message..\n");
-		fclose(f);
 	}
 }
 
