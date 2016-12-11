@@ -7,6 +7,7 @@ Implemented features:
 Normal commands:
 
 LIST_MESS – lists all new messages.
+
 LIST_USERS – lists all authorized users.
 SEND_MESS – sends email to one or several users.
 LIST_READ – lists all read messages.
