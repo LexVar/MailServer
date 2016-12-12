@@ -36,7 +36,6 @@ int main(int argc, char** argv) {
 	int fd, client;
 	struct sockaddr_in addr, client_addr;
 	int client_addr_size;
-	int i;
 	int server_port;
 
 	if(argc != 3)
@@ -91,7 +90,7 @@ void process_client(int client_fd)
 	int nread = 0;
 	char buf_pass[SIZE];
 	char buf_user[SIZE], buffer[MAX_SIZE];
-	int flag, i, new;
+	int flag, new;
 
 	// reads username from client
 	nread = read(client_fd, buf_user, SIZE);
@@ -348,7 +347,6 @@ void apply_action(char *str, int client_fd, char *buf_user, int *oper)
 			printf("ERROR, User %s doesn't have OPER priveligies\n", buf_user);
 			return;
 		}
-		int i;
 		refresh_logins();
 		// reads new login information
 		nread = read(client_fd, client, SIZE);

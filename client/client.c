@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
 {
 
 	char endServer[100];
-	int fd, nread, flag, new;
+	int fd, flag, new;
 	struct sockaddr_in addr;
 	struct hostent *hostPtr;
 	char buffer[MAX_SIZE], user[SIZE];
@@ -108,7 +108,7 @@ void apply_action(char *str, int fd, char *user)
 {
 	char buf[SIZE];
 	int num_logins, nread;
-	int client, msg;
+	int  msg;
 	char message[MESSAGE_SIZE];
 
 	if(strcmp(str, "QUIT") == 0)
@@ -142,7 +142,7 @@ void apply_action(char *str, int fd, char *user)
 		// send message and user to server
 		write(fd, message, MESSAGE_SIZE);
 
-		printf("How maney users do you want to send it too: ");
+		printf("How many users do you want to send it too: ");
 		scanf("%d", &n);
 		// getchar to remove the left '\n'
 		getchar();
