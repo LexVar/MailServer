@@ -353,19 +353,30 @@ void apply_action(char *str, int client_fd, char *buf_user, int *oper)
 		client[nread] = '\0';
 		nread = read(client_fd, buf, SIZE);
 		buf[nread] = '\0';
-		// allocs more space for logins
-		user = realloc(user, ++num_logins);
-		pass = realloc(pass, num_logins);
-		user[num_logins-1] = malloc(SIZE);
-		pass[num_logins-1] = malloc(SIZE);
-		// saves logins
-		strcpy(user[num_logins-1], client);
-		strcpy(pass[num_logins-1], buf);
 
-		// updates logins on database
-		write_login("../client.aut");
-	}
-	else if(strcmp(str, "LIST_USER_MESS") == 0)
+		// checks if client already exists
+        int flag = check_client(client);
+        write(client_fd, &flag, sizeof(flag));
+        if(flag == 0)
+        {
+
+	        // allocs more space for logins
+			user = realloc(user, ++num_logins);
+			pass = realloc(pass, num_logins);
+			user[num_logins-1] = malloc(SIZE);
+			pass[num_logins-1] = malloc(SIZE);
+			// saves logins
+			strcpy(user[num_logins-1], client);
+			strcpy(pass[num_logins-1], buf);
+
+			// updates logins on database
+			write_login("../client.aut");
+
+        }
+        else
+            printf("User already on database\n");
+	 }
+     else if(strcmp(str, "LIST_USER_MESS") == 0)
 	{
 		if((*oper) == 0)
 		{

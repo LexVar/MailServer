@@ -263,7 +263,9 @@ void apply_action(char *str, int fd, char *user)
 			printf("ERROR, You don't have OPER priveligies\n");
 			return;
 		}
-		printf("User to add: ");
+		int flag;
+
+        printf("User to add: ");
 		fgets(buf, SIZE, stdin);
 		replace_line(buf);
 		write(fd, buf, SIZE);
@@ -271,6 +273,14 @@ void apply_action(char *str, int fd, char *user)
 		fgets(buf, SIZE, stdin);
 		replace_line(buf);
 		write(fd, buf, SIZE);
+
+        // to check if user was added or not
+        read(fd, &flag, sizeof(flag));
+
+		if(flag == 1)
+            printf("Could not add user, user already authorized\n");
+        else
+            printf("User added sucessfully\n");
 
 	}
 	else if(strcmp(str, "LIST_USER_MESS") == 0)
