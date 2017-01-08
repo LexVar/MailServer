@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
 	int fd, flag, new;
 	struct sockaddr_in addr;
 	struct hostent *hostPtr;
-	char buffer[MAX_SIZE], user[SIZE];
+	char buffer[MAX_SIZE], user[SIZE], pass[SIZE];
 
 	if (argc != 3)
 	{
@@ -57,9 +57,9 @@ int main(int argc, char *argv[])
 	write(fd, user, SIZE);
 
 	printf("Enter your password: ");
-	fgets(buffer, SIZE, stdin);
-	replace_line(buffer);
-	write(fd, buffer, SIZE);
+	fgets(pass, SIZE, stdin);
+	replace_line(pass);
+	write(fd, pass, SIZE);
 
 	read(fd, &flag, sizeof(flag));
 	if(flag == 1)
@@ -74,6 +74,17 @@ int main(int argc, char *argv[])
 	// work to do
 	while(1)
 	{
+		//verify if the user is still authorized
+		write(fd, user, SIZE);
+		write(fd, pass, SIZE);
+
+		read(fd, &flag, sizeof(flag));
+		if(flag != 1)
+		{
+			printf("Login is not authorized...\n");
+			exit(0);
+		}
+		
 		printf("Press enter to continues..\n");
 		getchar();
 		printf("LIST_MESS – para listar todas as mensagens por ler.\n");

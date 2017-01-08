@@ -118,6 +118,25 @@ void process_client(int client_fd)
 
 	while(1)
 	{
+		//verify if user is still authorized
+		// reads username from client
+		nread = read(client_fd, buf_user, SIZE);
+		buf_user[nread] = '\0';
+
+		// reads client password
+		nread = read(client_fd, buf_pass, SIZE);
+		buf_pass[nread] = '\0';
+
+		//verify if the client is authorized
+		flag = verifies_login(buf_user, buf_pass);
+
+		if(flag != 1)
+		{
+			printf("Client not authorized\n");
+			exit(0);
+		}
+		write(client_fd, &flag, sizeof(flag));
+
 		new = notify_new_msg(buf_user);
 		write(client_fd, &new, sizeof(new));
 		nread = read(client_fd, buffer, MAX_SIZE);
