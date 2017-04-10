@@ -359,12 +359,8 @@ void apply_action(char *str, int fd, char *user)
 
 void replace_line(char *str)
 {
-	int i;
-	for(i = 0; str[i] != '\0'; i++)
-	{
-		if(str[i] == '\n')
-			str[i] = '\0';
-	}
+	if (str[strlen(str)-1] == '\n')
+		str[strlen(str)-1] == 0;
 }
 
 int num_lines(char *file)
