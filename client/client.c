@@ -360,7 +360,7 @@ void apply_action(char *str, int fd, char *user)
 void replace_line(char *str)
 {
 	if (str[strlen(str)-1] == '\n')
-		str[strlen(str)-1] == 0;
+		str[strlen(str)-1] = 0;
 }
 
 int num_lines(char *file)
